@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rialo Testnet Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F1519;
+    --surface: #171F25;
+    --surface-raised: #1E282F;
+    --border: #2A363E;
+    --accent: #4FD1C5;
+    --accent-dim: #2F6E68;
+    --warn: #E8A94C;
+    --danger: #E2685C;
+    --text: #DDE6E8;
+    --text-dim: #71838B;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  .topbar {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .topbar .mark {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+
+  .topbar .sub {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(340px, 480px) 1fr;
+    gap: 0;
+    min-height: calc(100vh - 65px);
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    padding: 32px;
+    border-right: 1px solid var(--border);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease;
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .form-section { display: none; }
+  .form-section.active { display: block; }
+
+  .form-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+  }
+
+  .form-hint {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+  }
+
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+
+  input {
+    width: 100%;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  button.action {
+    margin-top: 24px;
+    width: 100%;
+    background: var(--accent);
+    color: #0A1210;
+    border: none;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  button.action:hover { background: #62E0D4; }
+  button.action:active { transform: scale(0.99); }
+  button.action:disabled {
+    background: var(--surface-raised);
+    color: var(--text-dim);
+    cursor: not-allowed;
+  }
+
+  .ledger-col {
+    background: var(--surface);
+    padding: 32px;
+    overflow-y: auto;
+    max-height: calc(100vh - 65px);
+  }
+
+  .ledger-header {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    position: relative;
+  }
+
+  .ledger-header::after {
+    content: '';
+    display: block;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-image: repeating-linear-gradient(to right, var(--border) 0 6px, transparent 6px 12px);
+  }
+
+  .entry {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 14px;
+    animation: dropIn 0.25s ease;
+    position: relative;
+  }
+
+  .entry::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 16px;
+    right: 16px;
+    height: 6px;
+    background-image: radial-gradient(circle, var(--bg) 2.5px, transparent 2.6px);
+    background-size: 14px 14px;
+    background-position: center;
+  }
+
+  @keyframes dropIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .entry-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .entry-type {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .entry-type.error { color: var(--danger); }
+
+  .entry-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .field-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  .field-value {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    background: var(--bg);
+    padding: 6px 8px;
+    border-radius: 4px;
+    flex: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 4px;
+    padding: 5px 9px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+
+  .copy-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .copy-btn.copied {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0A1210;
+  }
+
+  .empty-state {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 40px 0;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .warn-banner {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--warn);
+    background: rgba(232, 169, 76, 0.08);
+    border: 1px solid rgba(232, 169, 76, 0.25);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="mark">RIALO://TESTNET</span>
+  <span class="sub">wallet console — not for real funds</span>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <div class="warn-banner">
+      Testnet only. Nothing is stored server-side — copy your private key when a wallet is created, it's shown once. Never reuse a real wallet's private key here.
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="create">Create</button>
+      <button class="tab" data-tab="balance">Balance</button>
+      <button class="tab" data-tab="airdrop">Airdrop</button>
+      <button class="tab" data-tab="transfer">Transfer</button>
+    </div>
+
+    <div class="form-section active" id="tab-create">
+      <p class="form-title">Create wallet</p>
+      <p class="form-hint">Generates a new keypair. Nothing is saved anywhere — copy your private key and pubkey now, they're shown once.</p>
+      <button class="action" onclick="createWallet()">Create wallet</button>
+    </div>
+
+    <div class="form-section" id="tab-balance">
+      <p class="form-title">Check balance</p>
+      <p class="form-hint">Look up the RLO balance of any wallet address.</p>
+      <label>Wallet address / pubkey</label>
+      <input id="b-pubkey" placeholder="paste a pubkey" />
+      <button class="action" onclick="checkBalance()">Check balance</button>
+    </div>
+
+    <div class="form-section" id="tab-airdrop">
+      <p class="form-title">Request airdrop</p>
+      <p class="form-hint">Requests testnet RLO to any wallet address.</p>
+      <label>Wallet address / pubkey</label>
+      <input id="a-pubkey" placeholder="paste a pubkey" />
+      <label>Amount (RLO)</label>
+      <input id="a-amount" placeholder="1.0" />
+      <button class="action" onclick="requestAirdrop()">Request airdrop</button>
+    </div>
+
+    <div class="form-section" id="tab-transfer">
+      <p class="form-title">Transfer RLO</p>
+      <p class="form-hint">Sends RLO from your wallet to another address. Your private key is used only for this one request and is never stored.</p>
+      <label>Your private key (hex)</label>
+      <input id="t-secret" type="password" placeholder="64-character hex string" />
+      <label>To pubkey</label>
+      <input id="t-to" placeholder="recipient pubkey" />
+      <label>Amount (RLO)</label>
+      <input id="t-amount" placeholder="0.1" />
+      <button class="action" onclick="sendTransfer()">Send transfer</button>
+    </div>
+  </div>
+
+  <div class="ledger-col">
+    <div class="ledger-header">Ledger tape — most recent first</div>
+    <div id="ledger"></div>
+  </div>
+</div>
+
+<script>
+const ledger = document.getElementById('ledger');
+renderEmptyState();
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+function renderEmptyState() {
+  if (ledger.children.length === 0) {
+    ledger.innerHTML = '<div class="empty-state">No actions yet.<br>Create a wallet to get started.</div>';
+  }
+}
+
+function clearEmptyState() {
+  if (ledger.querySelector('.empty-state')) ledger.innerHTML = '';
+}
+
+function fieldRow(label, value) {
+  const id = 'f_' + Math.random().toString(36).slice(2, 9);
+  return `
+    <div class="field-row">
+      <span class="field-label">${label}</span>
+      <span class="field-value" id="${id}">${value}</span>
+      <button class="copy-btn" onclick="copyField('${id}', this)">copy</button>
+    </div>`;
+}
+
+function copyField(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = 'copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1200);
+  });
+}
+
+function addEntry(type, fieldsHtml, isError = false) {
+  clearEmptyState();
+  const time = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'entry';
+  entry.innerHTML = `
+    <div class="entry-head">
+      <span class="entry-type ${isError ? 'error' : ''}">${type}</span>
+      <span class="entry-time">${time}</span>
+    </div>
+    ${fieldsHtml}
+  `;
+  ledger.insertBefore(entry, ledger.firstChild);
+}
+
+async function callApi(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function createWallet() {
+  try {
+    const r = await callApi('/api/wallet/create', {});
+    addEntry('wallet created', fieldRow('pubkey', r.pubkey) + fieldRow('private key', r.private_key) + fieldRow('mnemonic', r.mnemonic));
+  } catch (e) {
+    addEntry('create — error', fieldRow('error', e.message), true);
+  }
+}
+
+async function checkBalance() {
+  const pubkey = document.getElementById('b-pubkey').value.trim();
+  if (!pubkey) return addEntry('balance — error', fieldRow('error', 'pubkey required'), true);
+  try {
+    const r = await callApi('/api/balance', { pubkey });
+    addEntry('balance', fieldRow('address', pubkey) + fieldRow('balance', r.balance_rlo + ' RLO'));
+  } catch (e) {
+    addEntry('balance — error', fieldRow('error', e.message), true);
+  }
+}
+
+async function requestAirdrop() {
+  const pubkey = document.getElementById('a-pubkey').value.trim();
+  const amount = document.getElementById('a-amount').value.trim();
+  if (!pubkey || !amount) return addEntry('airdrop — error', fieldRow('error', 'pubkey and amount required'), true);
+  try {
+    const r = await callApi('/api/airdrop', { pubkey, amount });
+    addEntry('airdrop', fieldRow('address', pubkey) + fieldRow('amount', r.amount_rlo + ' RLO') + fieldRow('signature', r.signature));
+  } catch (e) {
+    addEntry('airdrop — error', fieldRow('error', e.message), true);
+  }
+}
+
+async function sendTransfer() {
+  const secret = document.getElementById('t-secret').value.trim();
+  const toPubkey = document.getElementById('t-to').value.trim();
+  const amount = document.getElementById('t-amount').value.trim();
+  if (!secret || !toPubkey || !amount) return addEntry('transfer — error', fieldRow('error', 'all fields required'), true);
+  try {
+    const r = await callApi('/api/transfer', { secret, toPubkey, amount });
+    addEntry('transfer', fieldRow('to', r.to) + fieldRow('amount', r.amount_rlo + ' RLO') + fieldRow('signature', r.signature));
+  } catch (e) {
+    addEntry('transfer — error', fieldRow('error', e.message), true);
+  }
+}
+</script>
+
+</body>
+</html>

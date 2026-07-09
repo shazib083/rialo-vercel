@@ -1,0 +1,12 @@
+[package]
+name = "rialo-tester"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rialo-cdk = { version = "0.12", features = ["rpc-client", "bincode", "hd-wallet", "mnemonic"] }
+ed25519-dalek = "2"
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+serde_json = "1"
