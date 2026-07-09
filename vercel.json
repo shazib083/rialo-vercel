@@ -1,6 +1,18 @@
 {
   "functions": {
-    "api/**/*.js": {
+    "api/wallet/create.js": {
+      "includeFiles": "bin/**",
+      "maxDuration": 30
+    },
+    "api/balance.js": {
+      "includeFiles": "bin/**",
+      "maxDuration": 30
+    },
+    "api/airdrop.js": {
+      "includeFiles": "bin/**",
+      "maxDuration": 30
+    },
+    "api/transfer.js": {
       "includeFiles": "bin/**",
       "maxDuration": 30
     }
