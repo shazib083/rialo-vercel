@@ -3,74 +3,79 @@
 Same functionality as the Docker/Railway version — wallet create, balance,
 airdrop, transfer against `https://testnet.rialo.io/` — rebuilt for
 Vercel's serverless model. Nothing about the actual wallet logic changed;
-only how it's hosted.
+only how it's hosted and how the binary gets built.
 
 ```
 rialo-vercel/
-├── .rialo-tester/         Rust CLI (compiled by Vercel at build time)
+├── .github/workflows/build-binary.yml   Compiles the Rust CLI on every push
+├── .rialo-tester/                       Rust CLI source
 │   ├── Cargo.toml
 │   └── src/main.rs
-├── api/                    Serverless functions (routes match the URL path)
+├── bin/rialo-tester                      Compiled binary (committed by CI)
+├── api/                                   Serverless functions
 │   ├── wallet/create.js
 │   ├── balance.js
 │   ├── airdrop.js
 │   └── transfer.js
-├── lib/runCli.js           Shared: spawns the compiled binary, parses JSON
-├── index.html               Frontend (served automatically, static root)
-├── build-rust.sh            Compiles the Rust CLI for Linux during deploy
+├── lib/runCli.js                          Shared: spawns the binary, parses JSON
+├── index.html                              Frontend (served automatically)
 ├── package.json
-├── vercel.json               Bundles the compiled binary with each function
+├── vercel.json                              Bundles bin/ with each function
 └── .gitignore
 ```
 
-## Why this version is simpler than my first Vercel attempt
+## Why the binary is built in GitHub Actions, not in Vercel
 
-The wallet logic itself changed since then: there's no more named/password
-wallets saved anywhere. Every call is now self-contained — create returns
-a pubkey + private key + mnemonic in one shot, balance/airdrop only need a
-pubkey, and transfer takes a private key directly in the request. That
-means there's nothing to persist between requests, so this version needs
-**no database, no Redis, no volume** — just the compiled binary sitting
-next to each function.
+The first attempt tried compiling Rust directly inside Vercel's build step
+(`curl ... sh.rustup.org | sh`). That failed with `Could not resolve host:
+sh.rustup.org` — Vercel's build sandbox allows the network access it needs
+for `npm`/git, but isn't a reliable place to install an arbitrary
+third-party toolchain from scratch on every deploy.
 
-## 1. Push to git
+The fix: a GitHub Actions workflow (`.github/workflows/build-binary.yml`)
+compiles the Linux binary — GitHub's runners have full, unrestricted
+network access — and commits it straight into `bin/rialo-tester` in the
+repo. Vercel's build step then does nothing but `chmod +x` a file that's
+already there. No network dependency at deploy time at all.
+
+## 1. First-time setup
 
 ```bash
-git init
 git add .
-git status   # confirm bin/, node_modules/, .rialo-tester/target/ are NOT staged
-git commit -m "Rialo testnet console (Vercel)"
-git remote add origin https://github.com/<you>/<repo>.git
-git branch -M main
-git push -u origin main
+git commit -m "Switch to CI-built binary instead of building inside Vercel"
+git push
 ```
+
+This push triggers the GitHub Actions workflow automatically (check the
+**Actions** tab on your GitHub repo — it should show a run in progress).
+Wait for it to finish (a minute or two) — it'll push a second commit
+containing the compiled `bin/rialo-tester`.
 
 ## 2. Deploy
 
-1. https://vercel.com/new → Import this GitHub repo.
-2. Vercel automatically runs the `vercel-build` script from `package.json`,
-   which runs `build-rust.sh` — this installs Rust and compiles the CLI
-   for Linux before the functions are bundled. No manual cross-compilation
-   needed on your end.
-3. Deploy. You get a public `https://<project>.vercel.app` URL with HTTPS
-   already handled.
+Once that Actions run finishes and `bin/rialo-tester` exists in the repo,
+either:
+- Trigger a redeploy from the Vercel dashboard (Deployments → the failed
+  one → "Redeploy"), or
+- Just push any small change — Vercel redeploys automatically on push.
 
-## The one thing I still can't fully guarantee
+You should get a public `https://<project>.vercel.app` URL. Test **Create
+Wallet** first.
 
-The binary is compiled on Vercel's Linux build machines and then run on
-Vercel's Linux Lambda runtime. These are normally compatible, but if a
-dependency links against a system library version that differs between
-build and runtime images, the function can fail at invocation even though
-the build succeeded — this is exactly the class of error you hit last
-time (`ENOENT` was a different problem — the binary wasn't there at all,
-because the previous project had no build step for it. This version's
-`vercel-build` script fixes that specific issue). If you see a *different*
-runtime error this time (not `ENOENT`), check the function logs in the
-Vercel dashboard and paste me the exact message.
+## If the GitHub Actions build itself fails
+
+Check the **Actions** tab on your repo for the specific error — this
+environment is a completely standard Ubuntu runner with normal internet
+access, so failures here would point to something in `main.rs`/`Cargo.toml`
+rather than a networking/sandboxing issue like before.
 
 ## Known limitations
 
 - **No rate limiting.** Anyone with the link can spam airdrop/transfer.
 - **Private keys travel over the network per-request** for transfers —
-  make sure the deployed URL is HTTPS (Vercel gives you this by default).
+  Vercel gives you HTTPS by default, so this is fine as deployed.
 - **Testnet only**, as always.
+- **The binary needs rebuilding (via a push to `.rialo-tester/**`) any
+  time `main.rs` changes** — the GitHub Actions workflow only triggers on
+  changes to that folder, by design, so it doesn't rebuild on every
+  unrelated commit.

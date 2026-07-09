@@ -1,0 +1,42 @@
+name: Build rialo-tester binary
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".rialo-tester/**"
+      - ".github/workflows/build-binary.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release --manifest-path .rialo-tester/Cargo.toml --target-dir .rialo-tester/target
+
+      - name: Copy binary into bin/
+        run: |
+          mkdir -p bin
+          cp .rialo-tester/target/release/rialo-tester bin/rialo-tester
+          chmod +x bin/rialo-tester
+
+      - name: Commit binary if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f bin/rialo-tester
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Rebuild rialo-tester binary [skip ci]"
+            git push
+          fi

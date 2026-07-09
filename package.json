@@ -6,6 +6,6 @@
     "node": "24.x"
   },
   "scripts": {
-    "vercel-build": "bash build-rust.sh"
+    "vercel-build": "chmod +x bin/rialo-tester || echo 'bin/rialo-tester not found yet - push a commit to main to trigger the GitHub Actions build first'"
   }
 }
